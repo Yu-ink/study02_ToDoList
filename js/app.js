@@ -113,6 +113,24 @@
       render();
     },
 
+    onStartEdit(id) {
+      state.editingId = id;
+      render();
+    },
+
+    onCommitEdit(id, text, category) {
+      if (state.editingId !== id) return; // 이미 저장/취소됨 (편집창이 지워질 때의 blur)
+      state.editingId = null;
+      ensureToday();
+      commit(Todos.updateTodo(state.todos, id, { text, category })); // 빈 내용이면 변경 없음 = 취소
+      render();
+    },
+
+    onCancelEdit() {
+      state.editingId = null;
+      render();
+    },
+
     onFilter(filter) {
       state.filter = filter;
       persistPrefs();

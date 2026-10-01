@@ -87,6 +87,29 @@
       const action = button.dataset.action;
       if (action === 'delete') handlers.onRemove(id);
       else if (action === 'up' || action === 'down') handlers.onMove(id, action);
+      else if (action === 'edit') handlers.onStartEdit(id);
+    });
+
+    els.list.addEventListener('dblclick', event => {
+      if (event.target.matches('.todo-text')) handlers.onStartEdit(itemId(event.target));
+    });
+
+    els.list.addEventListener('keydown', event => {
+      const row = event.target.closest('li.editing');
+      if (!row) return;
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commitEdit(row);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        handlers.onCancelEdit();
+      }
+    });
+
+    // 편집 줄 밖으로 포커스가 나가면 저장. 입력창 → 카테고리 선택처럼 줄 안에서 옮겨가면 저장하지 않는다.
+    els.list.addEventListener('focusout', event => {
+      const row = event.target.closest('li.editing');
+      if (row && !row.contains(event.relatedTarget)) commitEdit(row);
     });
 
     els.toastUndo.addEventListener('click', () => handlers.onUndo());
@@ -105,7 +128,16 @@
     renderFilters(state.filter);
     renderList(state);
     els.toast.hidden = !state.undo;
-    restoreFocus(focus);
+
+    const editInput = els.list.querySelector('.edit-text');
+    if (editInput) {
+      if (!editInput.closest('li').contains(document.activeElement)) {
+        editInput.focus();
+        editInput.setSelectionRange(editInput.value.length, editInput.value.length);
+      }
+    } else {
+      restoreFocus(focus);
+    }
   }
 
   function renderBanner(state) {
@@ -176,10 +208,11 @@
     els.empty.textContent = state.filter === 'all' ? '할 일이 없어요' : `${CATEGORY_LABELS[state.filter]} 할 일이 없어요`;
   }
 
-  function renderItem(todo, position) {
+  function renderItem(todo, position, state) {
+    if (state.editingId === todo.id) return renderEditingItem(todo);
     return el('li', { className: todo.done ? 'todo done' : 'todo', 'data-id': todo.id }, [
       el('input', { type: 'checkbox', className: 'todo-check', checked: todo.done, 'aria-label': `${todo.text} 완료` }),
-      el('span', { className: 'todo-text', text: todo.text }),
+      el('span', { className: 'todo-text', text: todo.text, title: '더블클릭해서 수정' }),
       el('span', { className: `tag cat-${todo.category}`, text: CATEGORY_LABELS[todo.category] }),
       el('div', { className: 'actions' }, [
         todo.done ? null : el('button', {
@@ -191,11 +224,33 @@
           'aria-label': `${todo.text} 아래로 이동`, disabled: position.last, text: '▼',
         }),
         el('button', {
+          type: 'button', className: 'icon', 'data-action': 'edit',
+          'aria-label': `${todo.text} 수정`, text: '✏️',
+        }),
+        el('button', {
           type: 'button', className: 'icon', 'data-action': 'delete',
           'aria-label': `${todo.text} 삭제`, text: '🗑',
         }),
       ]),
     ]);
+  }
+
+  function renderEditingItem(todo) {
+    return el('li', { className: todo.done ? 'todo done editing' : 'todo editing', 'data-id': todo.id }, [
+      el('input', {
+        type: 'text', className: 'edit-text', maxlength: Todos.MAX_TEXT_LENGTH,
+        value: todo.text, 'aria-label': '할 일 내용 수정 (Enter 저장, Esc 취소)',
+      }),
+      el('select', { className: 'edit-category', 'aria-label': '카테고리 수정', value: todo.category }, categoryOptions()),
+    ]);
+  }
+
+  function commitEdit(row) {
+    handlers.onCommitEdit(
+      row.dataset.id,
+      row.querySelector('.edit-text').value,
+      row.querySelector('.edit-category').value
+    );
   }
 
   // --- 포커스 유지: 목록을 다시 그려도 키보드 사용자가 제자리에 남도록 ---
