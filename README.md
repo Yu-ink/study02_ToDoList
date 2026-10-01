@@ -17,6 +17,10 @@
 
 ## 실행 방법
 
+**바로 사용하기:** https://yu-ink.github.io/study02_ToDoList/ (GitHub Pages)
+
+내 컴퓨터에서 실행하려면:
+
 1. 저장소를 내려받습니다.
    ```bash
    git clone https://github.com/Yu-ink/study02_ToDoList.git
