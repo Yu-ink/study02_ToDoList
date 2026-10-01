@@ -162,6 +162,22 @@
     ensureToday();
     TodoUI.init(handlers);
     render();
+
+    // 자정을 넘긴 뒤 탭으로 돌아오면 이월
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      ensureToday();
+      render();
+    });
+
+    // 다른 탭에서 바꾼 내용 반영 (같은 탭의 저장에는 발생하지 않는다)
+    window.addEventListener('storage', event => {
+      if (event.key !== TodoStorage.KEY && event.key !== null) return; // null = 전체 clear
+      loadTodos();
+      if (!state.todos.some(t => t.id === state.editingId)) state.editingId = null;
+      ensureToday();
+      render();
+    });
   }
 
   init();
