@@ -113,6 +113,12 @@
       render();
     },
 
+    onReorder(id, targetIndex) {
+      ensureToday();
+      commit(Todos.reorderTodo(state.todos, id, targetIndex, visibleIds()));
+      render();
+    },
+
     onStartEdit(id) {
       state.editingId = id;
       render();
