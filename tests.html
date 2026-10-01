@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>테스트</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; }
+    #results { list-style: none; padding: 0; line-height: 1.7; }
+    .pass { color: #1a7f37; }
+    .fail { color: #cf222e; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>테스트</h1>
+  <p id="summary"></p>
+  <ul id="results"></ul>
+
+  <script src="tests/harness.js"></script>
+  <script src="js/todos.js"></script>
+  <script src="tests/todos.test.js"></script>
+  <script>TestHarness.renderResults();</script>
+</body>
+</html>
