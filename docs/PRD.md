@@ -68,11 +68,12 @@
 - 다음 시점에 날짜를 확인한다:
   - 앱 시작 시
   - 탭이 다시 보이게 될 때 (`visibilitychange`)
+  - 할 일을 바꾸는 사용자 조작(추가·체크·삭제·순서 변경 등) 직전 — 자정을 넘겨 앱을 켜 둔 경우 대비
 - 오늘보다 이전 날짜의 항목이 있으면:
-  - **미완료 항목** → `date`를 오늘로 변경 (이월). 기존 순서를 유지한 채 오늘 미완료 목록 앞쪽에 위치.
+  - **미완료 항목** → `date`를 오늘로 변경 (이월). 배열 안의 기존 순서는 그대로 유지.
   - **완료 항목** → 삭제.
 - 이월된 항목에 별도 표시는 하지 않는다.
-- 헤더에 오늘 날짜를 `2026년 10월 1일 (수)` 형식으로 표시한다.
+- 헤더에 오늘 날짜를 `2026년 10월 1일 (목)` 형식으로 표시한다.
 
 ## 3. 데이터 설계
 
@@ -110,11 +111,13 @@
 ```
 index.html        앱 진입점
 style.css         스타일 (라이트/다크)
-js/storage.js     localStorage 읽기/쓰기, 데이터 검증·복구
-js/todos.js       할 일 로직 — DOM을 모르는 순수 함수
+js/storage.js     localStorage 읽기/쓰기 (JSON 봉투, 손상 시 백업)
+js/todos.js       할 일 로직 — DOM을 모르는 순수 함수 (저장 데이터 항목 검증 포함)
 js/ui.js          렌더링, 이벤트 처리, 드래그 앤 드롭, 토스트
 js/app.js         초기화, 상태 보관, 모듈 연결
-tests.html        todos.js / storage 검증 로직 테스트 러너
+tests.html        테스트 러너 (브라우저로 열기)
+tests/harness.js  최소 테스트 도구 (test / assert / assertEqual)
+tests/*.test.js   todos.js, storage.js 테스트
 ```
 
 ### 4.2 모듈 규칙
@@ -132,12 +135,19 @@ tests.html        todos.js / storage 검증 로직 테스트 러너
 | `removeTodo(todos, id)` | 삭제. `{ todos, removed, index }` 반환 (실행 취소용) |
 | `restoreTodo(todos, removed, index)` | 삭제 취소 |
 | `toggleTodo(todos, id, now)` | 완료/해제 + 위치 이동 |
-| `moveTodo(todos, id, direction, visibleIds)` | ▲▼ 이동 (보이는 항목 기준) |
-| `reorderTodo(todos, id, targetIndexAmongVisible, visibleIds)` | 드래그 앤 드롭 이동 |
+| `moveTodo(todos, id, 'up' \| 'down', visibleIds)` | ▲▼ 이동 (보이는 항목 기준) |
+| `reorderTodo(todos, id, targetIndex, visibleIds)` | 보이는 미완료 항목 사이에서 `targetIndex` 위치로 이동 |
+| `dropIndex(orderIds, dragId, targetId, after)` | 드래그 앤 드롭의 최종 위치 계산 |
+| `normalizeOrder(todos)` | `[미완료..., 완료(최근 완료 순)...]` 불변 조건 복구 |
 | `rollover(todos, today)` | 이월 + 지난 완료 삭제 |
 | `getProgress(todos)` | `{ total, done, percent, byCategory: { work, personal, study } }` |
 | `filterTodos(todos, filter)` | 필터 적용 |
+| `isValidTodo(item)` / `sanitizeTodos(list)` | 저장 데이터 항목 검증 / 잘못된 항목 제거 + 순서 복구 |
+| `sanitizePrefs(prefs)` | 필터·마지막 카테고리 설정값 검증 |
 | `toDateKey(date)` | `Date` → 로컬 `YYYY-MM-DD` |
+| `formatDateLabel(date)` | `Date` → `2026년 10월 1일 (목)` |
+
+- 변경할 것이 없으면(빈 입력, 없는 id, 이동 불가 등) **입력 배열을 그대로 반환**한다. 호출부는 `next === todos`로 변경 여부를 판단한다.
 
 ### 4.4 상태 흐름
 ```
@@ -151,7 +161,7 @@ tests.html        todos.js / storage 검증 로직 테스트 러너
 
 ```
 ┌──────────────────────────────────────────┐
-│  오늘 할 일          2026년 10월 1일 (수)   │  헤더
+│  오늘 할 일          2026년 10월 1일 (목)   │  헤더
 ├──────────────────────────────────────────┤
 │  ████████████░░░░░░░░  7 / 12 · 58%       │  전체 진행률
 │  업무 ███░ 3/5   개인 ██░ 2/3   공부 ██░ 2/4 │  카테고리별
@@ -173,7 +183,7 @@ tests.html        todos.js / storage 검증 로직 테스트 러너
 - 색상은 CSS 변수로 정의 (라이트/다크 각각).
 
 ### 5.1 접근성
-- 체크박스는 실제 `<input type="checkbox">` + `<label>`.
+- 체크박스는 실제 `<input type="checkbox">`를 쓰고, 이름은 `aria-label`("보고서 초안 작성 완료")로 붙인다. 텍스트를 `<label>`로 감싸면 텍스트 더블클릭(편집 시작) 때 체크가 두 번 토글되므로 쓰지 않는다.
 - 아이콘 버튼에는 `aria-label` (예: "보고서 초안 작성 삭제").
 - 키보드만으로 모든 기능 사용 가능 (Tab 이동, Enter/Space 실행, Esc 편집 취소).
 - 진행 바는 `role="progressbar"`와 `aria-valuenow/min/max`.

@@ -18,7 +18,7 @@
 | 파일 | 책임 | 하면 안 되는 것 |
 |---|---|---|
 | `js/todos.js` | 할 일 로직 (순수 함수, 새 배열 반환) | DOM 접근, `localStorage` 접근, `Date.now()` 직접 호출 |
-| `js/storage.js` | 저장/로드, 데이터 검증·복구 | DOM 접근 |
+| `js/storage.js` | 저장/로드 (JSON 봉투, 손상 시 백업) | DOM 접근, 항목 검증(→ `Todos.sanitizeTodos`) |
 | `js/ui.js` | 렌더링, 이벤트, 드래그 앤 드롭, 토스트 | 데이터 직접 변경 |
 | `js/app.js` | 상태 보관, `dispatch`, 초기화 | 비즈니스 로직 구현 |
 
@@ -32,5 +32,7 @@
 - 코드 주석과 UI 문구는 한국어, 식별자는 영어로 쓴다.
 
 ## 테스트 실행
-- 자동 테스트: 브라우저로 `tests.html` 열기
+- 자동 테스트: 브라우저로 `tests.html` 열기 → `결과: N 통과, 0 실패` 확인 (탭 제목도 `PASS`/`FAIL` 표시)
+  - 에이전트: `.claude/launch.json`의 `static` 서버(`python -m http.server 8000`)를 띄우고 `http://localhost:8000/tests.html`의 페이지 텍스트를 읽는다.
+- 테스트 코드: `tests/harness.js`(도구), `tests/*.test.js`(테스트). 새 테스트 파일은 `tests.html`에 `<script>`로 추가한다.
 - 수동 점검: PRD 7.2 체크리스트
