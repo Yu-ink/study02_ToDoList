@@ -56,4 +56,5 @@ docs/             PRD, 구현 계획
 
 - [PRD (제품 요구사항)](docs/PRD.md)
 - [구현 계획](docs/superpowers/plans/2026-10-01-today-todo-app.md)
+- [Claude Code 단계별 프롬프트](docs/claude-code-prompts.md)
 - [Claude 작업 지침](CLAUDE_전역.md)
