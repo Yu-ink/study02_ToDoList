@@ -7,6 +7,7 @@
   const FILTERS = ['all'].concat(CATEGORIES);
   const MAX_TEXT_LENGTH = 200;
   const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+  const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
   function pad2(n) {
     return String(n).padStart(2, '0');
@@ -138,6 +139,72 @@
     return to;
   }
 
+  // 날짜가 바뀌면: 지난 미완료 → 오늘로 이월(위치 유지), 지난 완료 → 삭제.
+  // 'YYYY-MM-DD'는 문자열 비교로 날짜 순서가 맞다.
+  function rollover(todos, today) {
+    let changed = false;
+    const next = [];
+    todos.forEach(t => {
+      if (t.date >= today) {
+        next.push(t);
+        return;
+      }
+      changed = true;
+      if (!t.done) next.push(Object.assign({}, t, { date: today }));
+    });
+    return changed ? next : todos;
+  }
+
+  function percentOf(done, total) {
+    return total ? Math.round((done / total) * 100) : 0;
+  }
+
+  function getProgress(todos) {
+    const byCategory = {};
+    CATEGORIES.forEach(c => {
+      byCategory[c] = { total: 0, done: 0, percent: 0 };
+    });
+    todos.forEach(t => {
+      byCategory[t.category].total += 1;
+      if (t.done) byCategory[t.category].done += 1;
+    });
+    CATEGORIES.forEach(c => {
+      byCategory[c].percent = percentOf(byCategory[c].done, byCategory[c].total);
+    });
+    const total = todos.length;
+    const done = todos.filter(t => t.done).length;
+    return { total, done, percent: percentOf(done, total), byCategory };
+  }
+
+  function filterTodos(todos, filter) {
+    return filter === 'all' ? todos : todos.filter(t => t.category === filter);
+  }
+
+  function isValidTodo(item) {
+    return Boolean(item) && typeof item === 'object' &&
+      typeof item.id === 'string' && item.id !== '' &&
+      typeof item.text === 'string' && item.text.trim() !== '' && item.text.length <= MAX_TEXT_LENGTH &&
+      CATEGORIES.includes(item.category) &&
+      typeof item.done === 'boolean' &&
+      typeof item.date === 'string' && DATE_KEY_PATTERN.test(item.date) &&
+      typeof item.createdAt === 'number' &&
+      (item.completedAt === null || typeof item.completedAt === 'number');
+  }
+
+  // 저장소에서 읽은 목록 정리: 잘못된 항목 제거 + 순서 불변 조건 복구
+  function sanitizeTodos(list) {
+    if (!Array.isArray(list)) return [];
+    return normalizeOrder(list.filter(isValidTodo));
+  }
+
+  function sanitizePrefs(prefs) {
+    const p = prefs && typeof prefs === 'object' ? prefs : {};
+    return {
+      filter: FILTERS.includes(p.filter) ? p.filter : 'all',
+      lastCategory: CATEGORIES.includes(p.lastCategory) ? p.lastCategory : 'work',
+    };
+  }
+
   window.Todos = {
     CATEGORIES,
     CATEGORY_LABELS,
@@ -154,5 +221,11 @@
     reorderTodo,
     moveTodo,
     dropIndex,
+    rollover,
+    getProgress,
+    filterTodos,
+    isValidTodo,
+    sanitizeTodos,
+    sanitizePrefs,
   };
 })();

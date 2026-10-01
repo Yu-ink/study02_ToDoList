@@ -200,4 +200,74 @@
   test('dropIndex: 자기 자신 위에 놓으면 제자리', () => {
     assertEqual(Todos.dropIndex(['a', 'b', 'c'], 'b', 'b', true), 1);
   });
+
+  // --- 날짜 넘김 ---
+  test('rollover: 지난 미완료는 오늘로 이월, 지난 완료는 삭제, 오늘 항목은 그대로', () => {
+    const todos = [
+      T('y1', { date: '2026-09-30' }),
+      T('t1'),
+      T('y2', { date: '2026-09-30', done: true, completedAt: 1 }),
+    ];
+    const next = Todos.rollover(todos, '2026-10-01');
+    assertEqual(ids(next), ['y1', 't1']);
+    assertEqual(next[0].date, '2026-10-01');
+    assert(next[1] === todos[1], '오늘 항목은 같은 객체');
+  });
+
+  test('rollover: 바뀔 것이 없으면 같은 배열 반환', () => {
+    const todos = [T('a'), T('b', { done: true, completedAt: 1 })];
+    assert(Todos.rollover(todos, '2026-10-01') === todos);
+  });
+
+  // --- 진행률 ---
+  test('getProgress: 할 일이 없으면 모두 0', () => {
+    const zero = { total: 0, done: 0, percent: 0 };
+    assertEqual(Todos.getProgress([]), {
+      total: 0, done: 0, percent: 0,
+      byCategory: { work: zero, personal: zero, study: zero },
+    });
+  });
+
+  test('getProgress: 전체와 카테고리별 집계 (퍼센트 반올림)', () => {
+    const p = Todos.getProgress([T('a'), T('b', { done: true, completedAt: 1 }), T('c', { category: 'study' })]);
+    assertEqual([p.total, p.done, p.percent], [3, 1, 33]);
+    assertEqual(p.byCategory.work, { total: 2, done: 1, percent: 50 });
+    assertEqual(p.byCategory.personal, { total: 0, done: 0, percent: 0 });
+    assertEqual(p.byCategory.study, { total: 1, done: 0, percent: 0 });
+  });
+
+  // --- 필터 ---
+  test('filterTodos: all은 전체(같은 배열), 카테고리는 해당 항목만', () => {
+    const todos = [T('a'), T('b', { category: 'study' })];
+    assert(Todos.filterTodos(todos, 'all') === todos);
+    assertEqual(ids(Todos.filterTodos(todos, 'study')), ['b']);
+  });
+
+  // --- 저장 데이터 검증 ---
+  test('isValidTodo: 정상/비정상 항목 판별', () => {
+    assert(Todos.isValidTodo(T('a')), '정상 항목');
+    assert(!Todos.isValidTodo(null), 'null');
+    assert(!Todos.isValidTodo(T('', { text: 'x' })), '빈 id');
+    assert(!Todos.isValidTodo(T('a', { text: '   ' })), '빈 내용');
+    assert(!Todos.isValidTodo(T('a', { text: 'a'.repeat(201) })), '200자 초과');
+    assert(!Todos.isValidTodo(T('a', { category: 'etc' })), '잘못된 카테고리');
+    assert(!Todos.isValidTodo(T('a', { date: '2026/10/01' })), '잘못된 날짜 형식');
+    assert(!Todos.isValidTodo(T('a', { done: 'yes' })), 'done이 boolean 아님');
+    assert(!Todos.isValidTodo(T('a', { completedAt: 'x' })), 'completedAt이 숫자/null 아님');
+  });
+
+  test('sanitizeTodos: 배열 아님 → 빈 목록, 잘못된 항목 제거, 순서 복구', () => {
+    assertEqual(Todos.sanitizeTodos({}), []);
+    const list = [T('d', { done: true, completedAt: 1 }), { id: 'bad' }, T('a')];
+    assertEqual(ids(Todos.sanitizeTodos(list)), ['a', 'd']);
+  });
+
+  test('sanitizePrefs: 잘못된 값은 기본값으로', () => {
+    assertEqual(Todos.sanitizePrefs(null), { filter: 'all', lastCategory: 'work' });
+    assertEqual(
+      Todos.sanitizePrefs({ filter: 'study', lastCategory: 'personal' }),
+      { filter: 'study', lastCategory: 'personal' }
+    );
+    assertEqual(Todos.sanitizePrefs({ filter: 'x', lastCategory: 'y' }), { filter: 'all', lastCategory: 'work' });
+  });
 })();
