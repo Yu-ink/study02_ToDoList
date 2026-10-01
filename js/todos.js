@@ -86,6 +86,58 @@
     return normalizeOrder(next);
   }
 
+  function toggleTodo(todos, id, now) {
+    const target = todos.find(t => t.id === id);
+    if (!target) return todos;
+    const { active, done } = splitByDone(todos.filter(t => t.id !== id));
+    if (target.done) {
+      // 해제 → 미완료 맨 아래
+      return active.concat([Object.assign({}, target, { done: false, completedAt: null })], done);
+    }
+    // 완료 → 완료 목록 맨 위 (최근 완료가 위)
+    return active.concat([Object.assign({}, target, { done: true, completedAt: now })], done);
+  }
+
+  // 화면에 보이는(필터 적용된) 미완료 항목 id를 배열 순서대로
+  function visibleActiveIds(todos, visibleIds) {
+    const visible = new Set(visibleIds);
+    return todos.filter(t => !t.done && visible.has(t.id)).map(t => t.id);
+  }
+
+  // 보이는 미완료 항목들 사이에서 id를 targetIndex로 옮긴다.
+  // 보이는 항목들이 차지하던 배열 자리(slot)에 새 순서대로 다시 채우므로, 나머지 항목은 제자리에 남는다.
+  function reorderTodo(todos, id, targetIndex, visibleIds) {
+    const order = visibleActiveIds(todos, visibleIds);
+    const from = order.indexOf(id);
+    if (from === -1) return todos;
+    const to = Math.max(0, Math.min(targetIndex, order.length - 1));
+    if (from === to) return todos;
+
+    order.splice(from, 1);
+    order.splice(to, 0, id);
+
+    const byId = new Map(todos.map(t => [t.id, t]));
+    const slots = new Set(order);
+    let k = 0;
+    return todos.map(t => (slots.has(t.id) ? byId.get(order[k++]) : t));
+  }
+
+  function moveTodo(todos, id, direction, visibleIds) {
+    const order = visibleActiveIds(todos, visibleIds);
+    const from = order.indexOf(id);
+    const to = direction === 'up' ? from - 1 : from + 1;
+    if (from === -1 || to < 0 || to >= order.length) return todos;
+    return reorderTodo(todos, id, to, visibleIds);
+  }
+
+  // 드래그 앤 드롭: dragId를 targetId의 앞/뒤에 놓을 때, 이동 후 기준의 인덱스
+  function dropIndex(orderIds, dragId, targetId, after) {
+    const from = orderIds.indexOf(dragId);
+    let to = orderIds.indexOf(targetId) + (after ? 1 : 0);
+    if (from < to) to -= 1; // 자기 자리가 빠지면서 한 칸 당겨진다
+    return to;
+  }
+
   window.Todos = {
     CATEGORIES,
     CATEGORY_LABELS,
@@ -98,5 +150,9 @@
     updateTodo,
     removeTodo,
     restoreTodo,
+    toggleTodo,
+    reorderTodo,
+    moveTodo,
+    dropIndex,
   };
 })();

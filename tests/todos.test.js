@@ -123,4 +123,81 @@
     ];
     assertEqual(ids(Todos.normalizeOrder(todos)), ['a', 'b', 'e', 'd']);
   });
+
+  // --- 완료 토글 ---
+  test('toggleTodo: 완료하면 완료 목록 맨 위로 이동', () => {
+    const next = Todos.toggleTodo([T('a'), T('b'), T('c', { done: true, completedAt: 1 })], 'a', 100);
+    assertEqual(ids(next), ['b', 'a', 'c']);
+    assertEqual([next[1].done, next[1].completedAt], [true, 100]);
+  });
+
+  test('toggleTodo: 완료 해제하면 미완료 맨 아래로 이동', () => {
+    const todos = [T('a'), T('c', { done: true, completedAt: 5 }), T('d', { done: true, completedAt: 1 })];
+    const next = Todos.toggleTodo(todos, 'd', 100);
+    assertEqual(ids(next), ['a', 'd', 'c']);
+    assertEqual([next[1].done, next[1].completedAt], [false, null]);
+  });
+
+  test('toggleTodo: 없는 id면 같은 배열 반환', () => {
+    const todos = [T('a')];
+    assert(Todos.toggleTodo(todos, 'zzz', 100) === todos);
+  });
+
+  // --- 순서 변경 ---
+  test('reorderTodo: 전체 보기에서 맨 아래로 이동', () => {
+    const todos = [T('a'), T('b'), T('c')];
+    assertEqual(ids(Todos.reorderTodo(todos, 'a', 2, ids(todos))), ['b', 'c', 'a']);
+  });
+
+  test('reorderTodo: 필터 적용 시 보이는 항목끼리만 이동, 나머지는 제자리', () => {
+    const todos = [T('w1'), T('p1', { category: 'personal' }), T('w2'), T('p2', { category: 'personal' })];
+    assertEqual(ids(Todos.reorderTodo(todos, 'w2', 0, ['w1', 'w2'])), ['w2', 'p1', 'w1', 'p2']);
+  });
+
+  test('reorderTodo: 완료 항목은 이동하지 않음', () => {
+    const todos = [T('a'), T('d', { done: true, completedAt: 1 })];
+    assert(Todos.reorderTodo(todos, 'd', 0, ids(todos)) === todos);
+  });
+
+  test('reorderTodo: 범위를 벗어난 위치는 끝으로 맞춤', () => {
+    const todos = [T('a'), T('b'), T('c')];
+    assertEqual(ids(Todos.reorderTodo(todos, 'a', 99, ids(todos))), ['b', 'c', 'a']);
+  });
+
+  test('reorderTodo: 같은 위치면 같은 배열 반환', () => {
+    const todos = [T('a'), T('b')];
+    assert(Todos.reorderTodo(todos, 'b', 1, ids(todos)) === todos);
+  });
+
+  test('moveTodo: 위로 한 칸', () => {
+    const todos = [T('a'), T('b'), T('c')];
+    assertEqual(ids(Todos.moveTodo(todos, 'c', 'up', ids(todos))), ['a', 'c', 'b']);
+  });
+
+  test('moveTodo: 맨 위 항목을 위로 → 같은 배열', () => {
+    const todos = [T('a'), T('b')];
+    assert(Todos.moveTodo(todos, 'a', 'up', ids(todos)) === todos);
+  });
+
+  test('moveTodo: 마지막 미완료 항목을 아래로 → 같은 배열 (완료 항목과 섞이지 않음)', () => {
+    const todos = [T('a'), T('b'), T('d', { done: true, completedAt: 1 })];
+    assert(Todos.moveTodo(todos, 'b', 'down', ids(todos)) === todos);
+  });
+
+  test('moveTodo: 필터 적용 시 다음 보이는 항목과 자리 교환', () => {
+    const todos = [T('w1'), T('p1', { category: 'personal' }), T('w2')];
+    assertEqual(ids(Todos.moveTodo(todos, 'w1', 'down', ['w1', 'w2'])), ['w2', 'p1', 'w1']);
+  });
+
+  test('dropIndex: 아래쪽 항목의 뒤에 놓기', () => {
+    assertEqual(Todos.dropIndex(['a', 'b', 'c', 'd'], 'a', 'c', true), 2);
+  });
+
+  test('dropIndex: 위쪽 항목의 앞에 놓기', () => {
+    assertEqual(Todos.dropIndex(['a', 'b', 'c', 'd'], 'd', 'b', false), 1);
+  });
+
+  test('dropIndex: 자기 자신 위에 놓으면 제자리', () => {
+    assertEqual(Todos.dropIndex(['a', 'b', 'c'], 'b', 'b', true), 1);
+  });
 })();
